@@ -16,7 +16,7 @@ To do
 - a nudge/poke feauture that would have the users send a message to their friend via twilio
 - Enhanced AI analysis of relationships with more data gathered from our contacts such as events we did with them or events we did in person together.
 
-##Running the App
+## Running the
 
 Route to /HeartSync and from there run:
 

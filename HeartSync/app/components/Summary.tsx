@@ -2,54 +2,123 @@ import { useEffect, useState } from "react";
 import { db } from "~/firebase";
 import { collection, getDocs } from "firebase/firestore";
 
-type MoodLog = { date: string | { toDate: () => Date }; mood: number; emotion: string };
+type MoodLog = { date: string; mood: number; emotion: string; activity?: string; description?: string };
 
-export default function Summary({ user }: any) {
-  const [stats, setStats] = useState<any>(null);
+type ContactPayload = {
+  name: string;
+  relation: string;
+  lastInteraction: string | null;
+  interactionCount: number;
+  interactionsThisWeek: number;
+  connectionLevel?: number;
+  interactionDates: string[];
+};
+
+export default function Summary({ user }: { user: { uid: string } }) {
+  const [summary, setSummary] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [retryKey, setRetryKey] = useState(0);
 
   useEffect(() => {
-    const fetchStats = async () => {
-      const moodLogsRef = collection(db, "users", user.uid, "moodLogs");
-      const snapshot = await getDocs(moodLogsRef);
-      const logs: MoodLog[] = [];
-      snapshot.forEach((doc) => logs.push(doc.data() as MoodLog));
+    let cancelled = false;
 
-      if (logs.length === 0) return;
+    async function run() {
+      try {
+        const moodSnap = await getDocs(collection(db, "users", user.uid, "moodLogs"));
+        const moodLogs: MoodLog[] = moodSnap.docs.map((doc) => {
+          const d = doc.data();
+          return {
+            date: doc.id,
+            mood: d.mood ?? 3,
+            emotion: d.emotion ?? "",
+            activity: d.activity,
+            description: d.description,
+          };
+        });
+        moodLogs.sort((a, b) => a.date.localeCompare(b.date));
 
-      const toDate = (d: MoodLog["date"]): Date =>
-        typeof d === "string" ? new Date(d) : (d as { toDate: () => Date }).toDate();
-      const dates = logs.map((l) => toDate(l.date)).sort((a, b) => a.getTime() - b.getTime());
-      let streak = 1;
-      for (let i = dates.length - 1; i > 0; i--) {
-        const diff = (dates[i].getTime() - dates[i - 1].getTime()) / (1000 * 3600 * 24);
-        if (diff === 1) streak++;
-        else break;
+        const now = new Date();
+        const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        const todayKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+
+        const contactsSnap = await getDocs(collection(db, "users", user.uid, "contacts"));
+        const contacts: ContactPayload[] = [];
+
+        for (const contactDoc of contactsSnap.docs) {
+          const c = contactDoc.data();
+          const interactionsSnap = await getDocs(
+            collection(db, "users", user.uid, "contacts", contactDoc.id, "interactions")
+          );
+          const interactionDates = interactionsSnap.docs.map((d) => d.id).sort();
+          const interactionsThisWeek = interactionDates.filter((id) => new Date(id) >= weekAgo).length;
+
+          contacts.push({
+            name: c.name ?? "",
+            relation: c.relation ?? "",
+            lastInteraction: c.lastInteraction ?? null,
+            interactionCount: interactionDates.length,
+            interactionsThisWeek,
+            connectionLevel: c.connectionLevel,
+            interactionDates,
+          });
+        }
+
+        const res = await fetch("/api/summary", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            moodLogs,
+            contacts,
+            today: todayKey,
+            totalLogCount: moodLogs.length,
+          }),
+        });
+
+        const data = (await res.json().catch(() => ({}))) as { summary?: string; error?: string; details?: string };
+        if (cancelled) return;
+        if (!res.ok) {
+          const msg = data.error || data.details || "Couldn’t generate summary";
+          throw new Error(msg);
+        }
+        setSummary(data.summary ?? null);
+      } catch (e) {
+        if (!cancelled) setError(e instanceof Error ? e.message : "Something went wrong");
+      } finally {
+        if (!cancelled) setLoading(false);
       }
+    }
 
-
-      const avgMood = (logs.reduce((sum, l) => sum + l.mood, 0) / logs.length).toFixed(1);
-
-  
-      const emotionCount: any = {};
-      logs.forEach((l) => (emotionCount[l.emotion] = (emotionCount[l.emotion] || 0) + 1));
-      const mostCommonEmotion = (Object.entries(emotionCount) as [string, number][])
-        .sort((a, b) => b[1] - a[1])[0][0];
-
-      setStats({ streak, avgMood, mostCommonEmotion, totalLogins: logs.length });
+    run();
+    return () => {
+      cancelled = true;
     };
+  }, [user.uid, retryKey]);
 
-    fetchStats();
-  }, [user]);
+  const retry = () => {
+    setError(null);
+    setSummary(null);
+    setLoading(true);
+    setRetryKey((k) => k + 1);
+  };
 
-  if (!stats) return <p>Loading summary...</p>;
+  if (loading) return <div className="bg-white border border-neutral-200 rounded-xl p-6 shadow-sm" />;
+  if (error) {
+    return (
+      <div className="bg-white border border-neutral-200 rounded-xl p-6 shadow-sm">
+        <p className="text-red-600 mb-2">{error}</p>
+        <button type="button" onClick={retry} className="text-sm underline text-neutral-600 hover:text-neutral-900">
+          Retry
+        </button>
+      </div>
+    );
+  }
+  if (!summary) return <p className="text-neutral-500">No data yet — log some moods and add connections.</p>;
 
   return (
     <div className="bg-white border border-neutral-200 rounded-xl p-6 shadow-sm flex flex-col gap-3">
       <h2 className="text-xl font-semibold">Summary</h2>
-      <p>Streak: <strong>{stats.streak} days</strong></p>
-      <p>Average Mood: <strong>{stats.avgMood}</strong></p>
-      <p>Most Common Emotion: <strong>{stats.mostCommonEmotion}</strong></p>
-      <p>Total Logins: <strong>{stats.totalLogins}</strong></p>
+      <div className="text-neutral-700 whitespace-pre-wrap leading-relaxed">{summary}</div>
     </div>
   );
 }

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { db } from "~/firebase";
-import { collection, getDocs, doc, setDoc } from "firebase/firestore";
+import { collection, getDocs, doc, setDoc, deleteDoc } from "firebase/firestore";
 
 export default function Connections({ user }: any) {
   const [contacts, setContacts] = useState<any[]>([]);
@@ -24,7 +24,15 @@ export default function Connections({ user }: any) {
     const fetchContacts = async () => {
       const snapshot = await getDocs(collection(db, "users", user.uid, "contacts"));
       const list: any[] = [];
-      snapshot.forEach((doc) => list.push({ id: doc.id, ...doc.data() }));
+      for (const contactDoc of snapshot.docs) {
+        const data = contactDoc.data();
+        const interactionsRef = collection(db, "users", user.uid, "contacts", contactDoc.id, "interactions");
+        const interactionsSnap = await getDocs(interactionsRef);
+        const interactionDates: string[] = [];
+        interactionsSnap.forEach((d) => interactionDates.push(d.id));
+        interactionDates.sort();
+        list.push({ id: contactDoc.id, ...data, interactionDates });
+      }
       setContacts(list);
     };
     fetchContacts();
@@ -53,9 +61,23 @@ export default function Connections({ user }: any) {
   };
 
   const getColorAndLabel = (level: number) => {
-    if (level <= 2) return { color: "#f56565", label: "Needs attention" };
+    if (level <= 2) return { color: "#f56565", label: "Been awhile" };
     if (level <= 4) return { color: "#ed8936", label: "Okay" };
-    return { color: "#48bb78", label: "Very connected" };
+    if (level <= 6) return { color: "#68d391", label: "Good" };
+    return { color: "#48bb78", label: "Great" };
+  };
+
+  const getTodayKey = () => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+  };
+
+  const updateConnectionLevel = async (contact: any, level: number) => {
+    const docRef = doc(db, "users", user.uid, "contacts", contact.id);
+    setContacts((prev) =>
+      prev.map((c) => (c.id === contact.id ? { ...c, connectionLevel: level, lastUpdated: new Date().toISOString() } : c))
+    );
+    await setDoc(docRef, { connectionLevel: level, lastUpdated: new Date().toISOString() }, { merge: true });
   };
 
   const toggleInteraction = async (contact: any) => {
@@ -65,13 +87,29 @@ export default function Connections({ user }: any) {
 
     const updatedValue = interactedToday ? null : new Date().toISOString();
     const docRef = doc(db, "users", user.uid, "contacts", contact.id);
+    const todayKey = getTodayKey();
+    const interactionRef = doc(db, "users", user.uid, "contacts", contact.id, "interactions", todayKey);
 
     setContacts((prev) =>
-      prev.map((c) =>
-        c.id === contact.id ? { ...c, lastInteraction: updatedValue, lastUpdated: new Date().toISOString() } : c
-      )
+      prev.map((c) => {
+        if (c.id !== contact.id) return c;
+        const dates = [...(c.interactionDates || [])];
+        if (interactedToday) {
+          const idx = dates.indexOf(todayKey);
+          if (idx >= 0) dates.splice(idx, 1);
+        } else {
+          if (!dates.includes(todayKey)) dates.push(todayKey);
+          dates.sort();
+        }
+        return { ...c, lastInteraction: updatedValue, lastUpdated: new Date().toISOString(), interactionDates: dates };
+      })
     );
 
+    if (interactedToday) {
+      await deleteDoc(interactionRef);
+    } else {
+      await setDoc(interactionRef, { date: todayKey });
+    }
     await setDoc(docRef, { lastInteraction: updatedValue, lastUpdated: new Date().toISOString() }, { merge: true });
   };
 
@@ -89,7 +127,7 @@ export default function Connections({ user }: any) {
           return (
             <div
               key={c.id}
-              className={`bg-white border border-neutral-200 rounded-2xl p-5 shadow-lg flex flex-col items-center gap-3 hover:scale-105 transform transition`}
+              className="bg-white border border-neutral-200 rounded-2xl p-5 shadow-lg flex flex-col items-center gap-3 hover:scale-105 transform transition"
             >
               <div className="w-20 h-20 rounded-full overflow-hidden border-2 border-neutral-200">
                 {c.photoURL ? (
@@ -106,20 +144,35 @@ export default function Connections({ user }: any) {
 
               <div className="w-full mt-2">
                 <div className="flex justify-between mb-1 text-sm text-neutral-600">
-                  <span>Connection</span>
+                  <span>How connected do you feel?</span>
                   <span>{label}</span>
                 </div>
-                <div className="w-full bg-neutral-200 h-3 rounded-full">
+                <input
+                  type="range"
+                  min={1}
+                  max={10}
+                  value={c.connectionLevel ?? 5}
+                  onChange={(e) => updateConnectionLevel(c, parseInt(e.target.value))}
+                  className="w-full h-2 accent-neutral-900 cursor-pointer"
+                />
+                <div className="w-full bg-neutral-200 h-1.5 rounded-full mt-1">
                   <div
-                    className="h-3 rounded-full"
-                    style={{ width: `${(c.connectionLevel / 10) * 100}%`, backgroundColor: color }}
+                    className="h-1.5 rounded-full transition-all"
+                    style={{ width: `${((c.connectionLevel ?? 5) / 10) * 100}%`, backgroundColor: color }}
                   />
                 </div>
               </div>
 
-              {c.lastUpdated && (
+              {c.lastInteraction && (
                 <span className="text-xs text-neutral-400 mt-1">
-                  Last updated: {new Date(c.lastUpdated).toLocaleDateString()}
+                  Last interacted with: {new Date(c.lastInteraction).toLocaleDateString()}
+                </span>
+              )}
+
+              {c.interactionDates && c.interactionDates.length > 0 && (
+                <span className="text-xs text-neutral-500 mt-0.5">
+                  Interacted on: {c.interactionDates.slice(-5).reverse().map((dateStr: string) => new Date(dateStr).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })).join(", ")}
+                  {c.interactionDates.length > 5 ? ` (+${c.interactionDates.length - 5} more)` : ""}
                 </span>
               )}
 
@@ -206,10 +259,12 @@ export default function Connections({ user }: any) {
               <label className="block mb-1 text-sm font-medium">
                 How connected do you feel?{" "}
                 {newContact.connectionLevel <= 2
-                  ? "Been Awhile"
-                  : newContact.connectionLevel <= 6
+                  ? "Been awhile"
+                  : newContact.connectionLevel <= 4
                   ? "Okay"
-                  : "Connected"}
+                  : newContact.connectionLevel <= 6
+                  ? "Good"
+                  : "Great"}
               </label>
               <input
                 type="range"

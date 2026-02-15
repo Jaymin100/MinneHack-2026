@@ -3,10 +3,11 @@ import { db } from "../firebase";
 import { doc, setDoc } from "firebase/firestore";
 
 const colors = ["bg-red-500", "bg-orange-500", "bg-yellow-400", "bg-lime-400", "bg-green-500"];
+const EMOTIONS = ["Happy", "Sad", "Anxious", "Calm", "Excited", "Frustrated", "Grateful", "Tired", "Loving", "Hopeful"];
 
 export default function MoodLogger({ user, onLogged }: any) {
   const [mood, setMood] = useState(3);
-  const [emotion, setEmotion] = useState("");
+  const [emotion, setEmotion] = useState(EMOTIONS[0]);
   const [activity, setActivity] = useState("");
   const [description, setDescription] = useState("");
 
@@ -32,7 +33,6 @@ export default function MoodLogger({ user, onLogged }: any) {
     <div className="bg-white border border-neutral-200 rounded-xl p-6 shadow-sm flex flex-col gap-4">
       <h2 className="text-xl font-semibold mb-2">Today's Mood</h2>
 
-      {/* Mood Selector */}
       <div className="flex gap-2">
         {colors.map((c, i) => (
           <div
@@ -43,13 +43,15 @@ export default function MoodLogger({ user, onLogged }: any) {
         ))}
       </div>
 
-      <input
-        type="text"
-        placeholder="Emotion (happy, anxious, etc.)"
-        className="border rounded-md px-3 py-2 w-full"
+      <select
+        className="border rounded-md px-3 py-2 w-full bg-white"
         value={emotion}
         onChange={(e) => setEmotion(e.target.value)}
-      />
+      >
+        {EMOTIONS.map((opt) => (
+          <option key={opt} value={opt}>{opt}</option>
+        ))}
+      </select>
       <input
         type="text"
         placeholder="Activity (max 50 chars)"

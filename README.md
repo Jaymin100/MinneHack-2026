@@ -1,2 +1,2 @@
-HeartSync
+HeartSync.
 

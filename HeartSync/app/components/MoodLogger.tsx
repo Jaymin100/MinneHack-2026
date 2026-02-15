@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { db } from "../firebase";
+import { ymd } from "../utils/date";
 import { doc, setDoc } from "firebase/firestore";
 
 const colors = ["#ef4444", "#f97316", "#eab308", "#84cc16", "#22c55e"];
@@ -12,8 +13,7 @@ export default function MoodLogger({ user, onLogged }: { user: { uid: string }; 
   const [notes, setNotes] = useState("");
 
   async function submit() {
-    const now = new Date();
-    const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+    const today = ymd();
     await setDoc(doc(db, "users", user.uid, "moodLogs", today), { mood, emotion, activity, description: notes, date: today });
     onLogged();
   }

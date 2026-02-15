@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router";
 import { auth, db } from "~/firebase";
+import { ymd } from "~/utils/date";
 import { doc, getDoc } from "firebase/firestore";
 import { onAuthStateChanged, type User } from "firebase/auth";
 import MoodLogger from "../components/MoodLogger";
@@ -19,8 +20,7 @@ export default function Dashboard() {
     const unsub = onAuthStateChanged(auth, async (u) => {
       if (u) {
         setUser(u);
-        const now = new Date();
-        const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+        const today = ymd();
         const moodDoc = await getDoc(doc(db, "users", u.uid, "moodLogs", today));
         setMoodLoggedToday(moodDoc.exists());
       } else setUser(null);

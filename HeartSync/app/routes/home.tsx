@@ -9,15 +9,10 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
 
   async function login() {
-    try {
-      setLoading(true);
-      await signInWithPopup(auth, provider);
-      navigate("/dashboard");
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setLoading(false);
-    }
+    setLoading(true);
+    await signInWithPopup(auth, provider);
+    navigate("/dashboard");
+    setLoading(false);
   }
 
   return (

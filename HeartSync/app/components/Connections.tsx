@@ -1,11 +1,7 @@
 import { useEffect, useState } from "react";
 import { db } from "~/firebase";
+import { ymd } from "~/utils/date";
 import { collection, getDocs, doc, setDoc, deleteDoc } from "firebase/firestore";
-
-function todayKey() {
-  const n = new Date();
-  return `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, "0")}-${String(n.getDate()).padStart(2, "0")}`;
-}
 
 export default function Connections({ user }: { user: { uid: string } }) {
   const [contacts, setContacts] = useState<any[]>([]);
@@ -47,7 +43,7 @@ export default function Connections({ user }: { user: { uid: string } }) {
   }
 
   async function toggleToday(c: any) {
-    const today = todayKey();
+    const today = ymd();
     const interacted = c.lastInteraction && new Date(c.lastInteraction).toDateString() === new Date().toDateString();
     const ref = doc(db, "users", user.uid, "contacts", c.id, "interactions", today);
     if (interacted) await deleteDoc(ref);

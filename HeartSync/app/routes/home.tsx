@@ -1,6 +1,6 @@
 import type { Route } from "./+types/home";
 import { signInWithPopup } from "firebase/auth";
-import { auth, provider } from "~/firebase";
+import { auth, provider } from "../firebase";
 import { useNavigate } from "react-router";
 import { useState } from "react";
 import logo from "../images/HeartLogo.png";
@@ -34,7 +34,8 @@ export default function Home() {
 
         <button
           onClick={handleLogin}
-          className="text-sm border border-neutral-300 px-4 py-2 rounded-md hover:bg-neutral-100 transition"
+          disabled={loading}
+          className="text-sm border border-neutral-300 px-4 py-2 rounded-md hover:bg-neutral-100 transition disabled:opacity-60"
         >
           Sign in
         </button>

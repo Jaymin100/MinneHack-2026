@@ -3,8 +3,6 @@ import { signInWithPopup } from "firebase/auth";
 import { auth, provider } from "../firebase";
 import { useNavigate } from "react-router";
 import { useState } from "react";
-import logo from "../images/HeartLogo.png";
-import logotext from "../images/HeartText.png";
 
 export default function Home() {
   const navigate = useNavigate();
@@ -27,7 +25,7 @@ export default function Home() {
       <header className="sticky top-0 z-40 w-full border-b border-sky-200 bg-sky-100/95 backdrop-blur-sm">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
           <div className="flex items-center gap-3">
-            <img src={logo} alt="" className="h-9 w-9 flex-shrink-0 rounded-lg object-contain" />
+            <img src="/HeartLogo.png" alt="" className="h-11 w-11 flex-shrink-0 rounded-lg object-contain" />
             <span className="text-xl font-bold tracking-tight text-sky-900">HeartSync</span>
           </div>
           <button
@@ -67,7 +65,7 @@ export default function Home() {
 
           <div className="bg-white border border-neutral-200 rounded-xl p-8 shadow-sm flex flex-col items-start gap-6 min-h-[16rem]">
             <div className="flex items-center justify-center w-full">
-              <img src={logotext} alt="HeartSync" className="w-auto h-100" />
+              <img src="/HeartText.png" alt="HeartSync" className="w-auto h-48 object-contain" />
             </div>
 
             <ul className="flex flex-col gap-3">

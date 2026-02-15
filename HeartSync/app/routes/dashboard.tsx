@@ -8,7 +8,6 @@ import Summary from "../components/Summary";
 import MoodCalendar from "../components/MoodCalendar";
 import Connections from "../components/Connections";
 import StatsDashComponent from "../components/StatsDash";
-import logo from "../images/HeartLogo.png";
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -42,7 +41,7 @@ export default function Dashboard() {
       <header className="sticky top-0 z-40 w-full border-b border-sky-200 bg-sky-100/95 backdrop-blur-sm">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
           <div className="flex items-center gap-3">
-            <img src={logo} alt="" className="h-9 w-9 flex-shrink-0 rounded-lg object-contain" />
+            <img src="/HeartLogo.png" alt="" className="h-9 w-9 flex-shrink-0 rounded-lg object-contain" />
             <span className="text-xl font-bold tracking-tight text-sky-900">HeartSync Dashboard</span>
           </div>
           <button

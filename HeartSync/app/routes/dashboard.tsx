@@ -16,65 +16,52 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (u) => {
+    const unsub = onAuthStateChanged(auth, async (u) => {
       if (u) {
         setUser(u);
         const now = new Date();
         const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
         const moodDoc = await getDoc(doc(db, "users", u.uid, "moodLogs", today));
         setMoodLoggedToday(moodDoc.exists());
-      } else {
-        setUser(null);
-      }
+      } else setUser(null);
       setLoading(false);
     });
-
-    return () => unsubscribe();
+    return () => unsub();
   }, []);
 
-  if (loading) return <p className="text-center mt-20">Loading...</p>;
-
-  if (!user) return <p className="text-center mt-20">Please log in first.</p>;
+  if (loading) return <p className="text-center py-16 text-gray-500">Loading...</p>;
+  if (!user) return <p className="text-center py-16 text-gray-500">Log in first.</p>;
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-sky-50 via-white to-rose-50/40 text-neutral-900">
-      <header className="sticky top-0 z-40 w-full border-b border-sky-200 bg-sky-100/95 backdrop-blur-sm">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
-          <div className="flex items-center gap-3">
-            <img src="/HeartLogo.png" alt="" className="h-9 w-9 flex-shrink-0 rounded-lg object-contain" />
-            <span className="text-xl font-bold tracking-tight text-sky-900">HeartSync Dashboard</span>
-          </div>
-          <button
-            type="button"
-            onClick={() => { auth.signOut(); navigate("/"); }}
-            className="rounded-lg border border-sky-300 bg-white/80 px-4 py-2 text-sm font-medium text-sky-800 transition hover:bg-sky-50"
-          >
-            Sign Out
+    <div className="min-h-screen bg-gray-100 text-gray-900">
+      <header className="border-b border-gray-200 bg-white px-4 py-3">
+        <div className="flex items-center justify-between max-w-4xl mx-auto">
+          <span className="font-semibold">HeartSync</span>
+          <button type="button" onClick={() => { auth.signOut(); navigate("/"); }} className="text-sm text-gray-600">
+            Sign out
           </button>
         </div>
       </header>
-
-      <main className="mx-auto max-w-7xl px-6 py-8">
-      {!moodLoggedToday ? (
-        <div className="fixed inset-0 bg-black bg-opacity-40 flex justify-center items-center z-50 p-4">
-          <div className="bg-white rounded-xl p-6 shadow-xl w-full max-w-md">
-            <MoodLogger user={user} onLogged={() => setMoodLoggedToday(true)} />
+      <main className="max-w-4xl mx-auto px-4 py-6">
+        {!moodLoggedToday ? (
+          <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50 p-4">
+            <div className="bg-white border border-gray-200 rounded p-4 w-full max-w-sm">
+              <MoodLogger user={user} onLogged={() => setMoodLoggedToday(true)} />
+            </div>
           </div>
-        </div>
-      ) : (
-        <>
-          <div className="grid md:grid-cols-2 gap-6 mb-8">
-            <Summary user={user} />
-            <MoodCalendar user={user} />
-          </div>
-          <div className="mb-8">
-            <StatsDashComponent user={user} />
-          </div>
-          <Connections user={user} />
-        </>
-      )}
+        ) : (
+          <>
+            <div className="grid md:grid-cols-2 gap-4 mb-6">
+              <Summary user={user} />
+              <MoodCalendar user={user} />
+            </div>
+            <div className="mb-6">
+              <StatsDashComponent user={user} />
+            </div>
+            <Connections user={user} />
+          </>
+        )}
       </main>
     </div>
   );
 }
-
